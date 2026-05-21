@@ -1,0 +1,741 @@
+@page "/"
+@model TripPlannerV1.Pages.PlanTripModel
+@{
+    ViewData["Title"] = "Plan a trip";
+}
+
+<div class="container">
+    <section class="hero">
+        <span class="hero-eyebrow"><i class="bi bi-stars"></i> Meet Aria</span>
+        <h1>Where to next?</h1>
+        <p class="lead">
+            Tell Aria a few things about your trip and she'll craft a budget-aware,
+            beautifully-paced itinerary — complete with a signature wow moment, insider
+            tradecraft, and the kind of details a great concierge whispers in your ear.
+        </p>
+    </section>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-9">
+
+            <div id="results"></div>
+
+            <div id="resultsPanel">
+                @if (!string.IsNullOrEmpty(Model.ResultMessage))
+                {
+                <div class="alert alert-success d-flex align-items-start gap-2" role="alert">
+                    <i class="bi bi-check2-circle fs-5"></i>
+                    <div>@Model.ResultMessage</div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.AiResponse))
+            {
+                <div class="card plan-card mb-4">
+                    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <span class="d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-journal-richtext"></i>
+                            <strong>Your itinerary, by Aria</strong>
+                        </span>
+                        <span class="d-flex flex-wrap align-items-center gap-2">
+                            <span class="small opacity-75">@Model.AiProvider @(string.IsNullOrEmpty(Model.AiModel) ? "" : "· " + Model.AiModel)</span>
+                            <button type="button" class="btn btn-sm btn-light" id="copyPlanBtn"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                            <button type="button" class="btn btn-sm btn-light" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+                            <a class="btn btn-sm btn-light" href="#planTripForm" id="planAnotherBtn"><i class="bi bi-arrow-counterclockwise me-1"></i>Plan another</a>
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <pre id="aiPlanText" class="mb-0">@Model.AiResponse</pre>
+                    </div>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(Model.AiError))
+            {
+                <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+                    <i class="bi bi-exclamation-triangle fs-5"></i>
+                    <div>
+                        <strong>Aria couldn't reach the AI just now.</strong>
+                        <div class="small mt-1">@Model.AiError</div>
+                        <div class="small mt-1">No worries — copy the prompt below and paste it into ChatGPT, Claude or Gemini to get the same plan.</div>
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.GeneratedPrompt))
+            {
+                <div class="card aria-card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-magic me-1"></i> The prompt Aria used</span>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="copyPromptBtn">
+                            <i class="bi bi-clipboard me-1"></i>Copy prompt
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-2">
+                            Want a second opinion? Paste this prompt into any LLM for an alternate take on your itinerary.
+                        </p>
+                        <textarea id="generatedPrompt" class="form-control" rows="10" readonly>@Model.GeneratedPrompt</textarea>
+                    </div>
+                </div>
+            }
+            </div>
+
+            <form method="post" novalidate id="planTripForm">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <!-- How it works -->
+                <section class="how-it-works" aria-label="How it works">
+                    <div class="how-step">
+                        <span class="how-step-num">1</span>
+                        <div>
+                            <strong>Tell Aria the basics</strong>
+                            <p>Where, when, who, and how much.</p>
+                        </div>
+                    </div>
+                    <div class="how-step">
+                        <span class="how-step-num">2</span>
+                        <div>
+                            <strong>Pick your vibe</strong>
+                            <p>Travel style, food, and what to avoid.</p>
+                        </div>
+                    </div>
+                    <div class="how-step">
+                        <span class="how-step-num">3</span>
+                        <div>
+                            <strong>Get a bespoke itinerary</strong>
+                            <p>In ~20 seconds, ready to share or print.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quick start -->
+                <section class="section-card quickstart-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-lightning-charge"></i></span>
+                        <div>
+                            <h2 class="section-title">Not sure where to start?</h2>
+                            <p class="section-sub">Pick a preset — we'll fill the form with sensible defaults you can tweak.</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" id="tryExampleBtn">
+                            <i class="bi bi-magic me-1"></i>Try an example
+                        </button>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"United States","DestinationCountry":"Italy","Travelers":2,"Days":10,"TravelMonth":"May","Budget":7000,"AccommodationTier":"Premium (4-star)","Pace":"Balanced","TravelTypes":["Romantic","Foodie","Cultural"]}'>
+                            💞 Romantic Italy
+                        </button>
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"United States","DestinationCountry":"Japan","Travelers":4,"Days":12,"TravelMonth":"April","Budget":12000,"AccommodationTier":"Mid-range (3-star)","Pace":"Balanced","TravelTypes":["Family","Cultural","Foodie"]}'>
+                            👪 Family Japan
+                        </button>
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"United Kingdom","DestinationCountry":"Thailand","Travelers":1,"Days":14,"TravelMonth":"November","Budget":2200,"AccommodationTier":"Budget / Hostel","Pace":"Relaxed","TravelTypes":["Backpacking","Beach","Adventure"]}'>
+                            🌴 Solo Thailand
+                        </button>
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"Canada","DestinationCountry":"France","Travelers":2,"Days":7,"TravelMonth":"September","Budget":5500,"AccommodationTier":"Boutique","Pace":"Balanced","TravelTypes":["Foodie","Artistic","Cultural"]}'>
+                            🍷 Foodie France
+                        </button>
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"Australia","DestinationCountry":"New Zealand","Travelers":2,"Days":10,"TravelMonth":"March","Budget":6000,"AccommodationTier":"Mid-range (3-star)","Pace":"Packed","TravelTypes":["Adventure","Nature","Photography"]}'>
+                            🏔️ Kiwi Adventure
+                        </button>
+                        <button type="button" class="btn btn-light preset-btn"
+                                data-preset='{"OriginCountry":"India","DestinationCountry":"United Arab Emirates","Travelers":2,"Days":5,"TravelMonth":"December","Budget":4500,"AccommodationTier":"Luxury (5-star)","Pace":"Balanced","TravelTypes":["Luxury","Shopping","Architecture & design"]}'>
+                            ✨ Dubai Luxe
+                        </button>
+                    </div>
+                </section>
+
+                <div class="alert alert-info d-flex align-items-start gap-2 small py-2" role="note">
+                    <i class="bi bi-shield-lock fs-6"></i>
+                    <div>Your inputs are sent to a third-party AI provider (OpenAI or Anthropic) to generate the itinerary. Please don't enter personal or sensitive information.</div>
+                </div>
+
+                <!-- Where -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-geo-alt"></i></span>
+                        <div>
+                            <h2 class="section-title">Where are you going?</h2>
+                            <p class="section-sub">We use your origin to set the right currency.</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.OriginCountry" class="form-label required">
+                                Flying from
+                                <i class="bi bi-info-circle text-muted ms-1" tabindex="0" data-bs-toggle="tooltip"
+                                   title="Used to set your home currency and estimate flight cost &amp; duration."></i>
+                            </label>
+                            <input asp-for="Input.OriginCountry" id="OriginCountry" class="form-control"
+                                   list="countryList" autocomplete="off" placeholder="e.g. United States" />
+                            <span asp-validation-for="Input.OriginCountry" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.DestinationCountry" class="form-label required">
+                                Heading to
+                                <i class="bi bi-info-circle text-muted ms-1" tabindex="0" data-bs-toggle="tooltip"
+                                   title="The country you want Aria to plan. Pick one country at a time for the best results."></i>
+                            </label>
+                            <input asp-for="Input.DestinationCountry" id="DestinationCountry" class="form-control"
+                                   list="countryList" autocomplete="off" placeholder="e.g. Japan" />
+                            <span asp-validation-for="Input.DestinationCountry" class="text-danger small"></span>
+                        </div>
+
+                        <datalist id="countryList">
+                            @foreach (var country in Model.Countries)
+                            {
+                                <option value="@country"></option>
+                            }
+                        </datalist>
+                    </div>
+                </section>
+
+                <!-- When & how long -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-calendar3"></i></span>
+                        <div>
+                            <h2 class="section-title">When &amp; how long?</h2>
+                            <p class="section-sub">Helps Aria pick the right season, weather and crowd level.</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="Input.Travelers" class="form-label">Travelers</label>
+                            <input asp-for="Input.Travelers" type="number" min="1" max="50" class="form-control" />
+                            <span asp-validation-for="Input.Travelers" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="Input.Days" class="form-label">Trip length (days)</label>
+                            <input asp-for="Input.Days" type="number" min="1" max="365" class="form-control" />
+                            <span asp-validation-for="Input.Days" class="text-danger small"></span>
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label asp-for="Input.TravelMonth" class="form-label">Travel month</label>
+                            <select asp-for="Input.TravelMonth" class="form-select">
+                                @foreach (var m in TripPlannerV1.Pages.PlanTripModel.TravelMonths)
+                                {
+                                    <option value="@m">@m</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Input.TravelMonth" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Budget & comfort -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-wallet2"></i></span>
+                        <div>
+                            <h2 class="section-title">Budget &amp; comfort</h2>
+                            <p class="section-sub">All-inclusive total for everyone — flights, stay, food, transport, activities.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Budget" class="form-label required">
+                            Total budget <span class="text-muted small">(<span id="currencyLabel">select origin country</span>)</span>
+                            <i class="bi bi-info-circle text-muted ms-1" tabindex="0" data-bs-toggle="tooltip"
+                               title="All-in budget for everyone combined: international flights, hotels, food, local transport and activities. We'll keep a ~10% buffer."></i>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text" id="currencyPrefix">—</span>
+                            <input asp-for="Input.Budget" type="number" step="0.01" min="0" class="form-control" placeholder="0.00" />
+                        </div>
+                        <span asp-validation-for="Input.Budget" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.AccommodationTier" class="form-label"><i class="bi bi-house-heart me-1"></i>Accommodation</label>
+                            <select asp-for="Input.AccommodationTier" class="form-select">
+                                @foreach (var t in TripPlannerV1.Pages.PlanTripModel.AccommodationTiers)
+                                {
+                                    <option value="@t">@t</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.Pace" class="form-label"><i class="bi bi-speedometer2 me-1"></i>Preferred pace</label>
+                            <select asp-for="Input.Pace" class="form-select">
+                                @foreach (var p in TripPlannerV1.Pages.PlanTripModel.PaceOptions)
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Style -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-palette"></i></span>
+                        <div>
+                            <h2 class="section-title">What's your travel vibe? <span class="required-dot" title="Required"></span></h2>
+                            <p class="section-sub">Mix and match freely — e.g. Foodie + Adventure + Relaxation. Tip: 2–4 picks usually beat 8.</p>
+                        </div>
+                    </div>
+
+                    <div class="chip-group">
+                        @foreach (var type in TripPlannerV1.Pages.PlanTripModel.AvailableTravelTypes)
+                        {
+                            var checkedAttr = Model.Input.TravelTypes.Contains(type) ? "checked" : null;
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="Input.TravelTypes"
+                                       value="@type" id="tt_@type" @checkedAttr />
+                                <label class="form-check-label" for="tt_@type">@type</label>
+                            </div>
+                        }
+                    </div>
+                    <span asp-validation-for="Input.TravelTypes" class="text-danger small d-block mt-2"></span>
+                </section>
+
+                <!-- Dietary -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-egg-fried"></i></span>
+                        <div>
+                            <h2 class="section-title">Dietary preferences</h2>
+                            <p class="section-sub">Optional — we'll only suggest restaurants that fit.</p>
+                        </div>
+                    </div>
+
+                    <div class="chip-group">
+                        @foreach (var d in TripPlannerV1.Pages.PlanTripModel.AvailableDietaryPreferences)
+                        {
+                            var checkedAttr = Model.Input.DietaryPreferences.Contains(d) ? "checked" : null;
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="Input.DietaryPreferences"
+                                       value="@d" id="diet_@d.Replace(' ', '_')" @checkedAttr />
+                                <label class="form-check-label" for="diet_@d.Replace(' ', '_')">@d</label>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <!-- Avoid -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-slash-circle"></i></span>
+                        <div>
+                            <h2 class="section-title">Anything to avoid?</h2>
+                            <p class="section-sub">Hard exclusions — Aria won't suggest these at all.</p>
+                        </div>
+                    </div>
+
+                    <div class="chip-group">
+                        @foreach (var a in TripPlannerV1.Pages.PlanTripModel.AvailableAvoidInterests)
+                        {
+                            var id = "avoid_" + a.Replace(' ', '_').Replace('/', '_').Replace('(', '_').Replace(')', '_');
+                            var checkedAttr = Model.Input.AvoidInterests.Contains(a) ? "checked" : null;
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" name="Input.AvoidInterests"
+                                       value="@a" id="@id" @checkedAttr />
+                                <label class="form-check-label" for="@id">@a</label>
+                            </div>
+                        }
+                    </div>
+                </section>
+
+                <!-- Personalization -->
+                <section class="section-card">
+                    <div class="section-head">
+                        <span class="section-icon"><i class="bi bi-stars"></i></span>
+                        <div>
+                            <h2 class="section-title">Make it personal</h2>
+                            <p class="section-sub">First-timers get iconic must-sees; repeat visitors get hidden gems.</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.IsFirstVisit" class="form-label">Is this your first time visiting this country?</label>
+                        <select asp-for="Input.IsFirstVisit" id="IsFirstVisit" class="form-select">
+                            <option value="true">Yes — first time visiting this country</option>
+                            <option value="false">No — I've been there before</option>
+                        </select>
+                    </div>
+
+                    <div class="card mb-3 d-none" id="wantedPlacesCard">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <i class="bi bi-pin-map-fill text-primary"></i>
+                            <strong>Must-sees you don't want to miss</strong>
+                            <span id="wantedPlacesCountryLabel" class="text-muted small ms-1"></span>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-2">
+                                Pick the places you'd love Aria to anchor the itinerary around — she'll build the rest of the trip to fit.
+                            </p>
+                            <div id="wantedPlacesList" class="chip-group mb-3">
+                                <span class="text-muted small">Enter a destination above to see suggestions.</span>
+                            </div>
+                            @{
+                                var preselectedWanted = Model.Input.WantedPlaces ?? new System.Collections.Generic.List<string>();
+                            }
+                            @foreach (var w in preselectedWanted)
+                            {
+                                <input type="hidden" name="Input.WantedPlaces" value="@w" class="wanted-preselect" data-value="@w" />
+                            }
+                            <div>
+                                <label asp-for="Input.WantedPlacesOther" class="form-label small">Anything else you'd like to include? (comma-separated)</label>
+                                <textarea asp-for="Input.WantedPlacesOther" class="form-control" rows="2"
+                                          placeholder="e.g. specific towns, museums, regions — separated by commas"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-0 d-none" id="visitedPlacesCard">
+                        <div class="card-header d-flex align-items-center gap-2">
+                            <i class="bi bi-bookmark-check text-primary"></i>
+                            <strong>Places you've already visited</strong>
+                            <span id="visitedPlacesCountryLabel" class="text-muted small ms-1"></span>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-2">
+                                Tick everything you've already seen — Aria will deliberately route around them and surface fresh ground instead.
+                            </p>
+                            <div id="visitedPlacesList" class="chip-group mb-3">
+                                <span class="text-muted small">Enter a destination above to see suggestions.</span>
+                            </div>
+                            @{
+                                var preselectedVisited = Model.Input.VisitedPlaces ?? new System.Collections.Generic.List<string>();
+                            }
+                            @foreach (var v in preselectedVisited)
+                            {
+                                <input type="hidden" name="Input.VisitedPlaces" value="@v" class="visited-preselect" data-value="@v" />
+                            }
+                            <div>
+                                <label asp-for="Input.VisitedPlacesOther" class="form-label small">Anything else? (comma-separated)</label>
+                                <textarea asp-for="Input.VisitedPlacesOther" class="form-control" rows="2"
+                                          placeholder="e.g. small towns or regions not listed above, separated by commas"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="planTripSubmit">
+                        <span class="spinner-border spinner-border-sm me-2 d-none" id="planTripSpinner" role="status" aria-hidden="true"></span>
+                        <span id="planTripSubmitLabel"><i class="bi bi-magic me-1"></i> Plan my trip</span>
+                    </button>
+                    <button type="reset" class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+                    <span class="form-text ms-auto"><i class="bi bi-hourglass-split me-1"></i>AI calls usually take 10–30 seconds — please don't refresh.</span>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<button type="button" id="backToTopBtn" class="btn back-to-top" aria-label="Back to top" title="Back to top">
+    <i class="bi bi-arrow-up"></i>
+</button>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const countryCurrency = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CountryCurrencyMap));
+            const originInput = document.getElementById('OriginCountry');
+            const currencyLabel = document.getElementById('currencyLabel');
+            const currencyPrefix = document.getElementById('currencyPrefix');
+
+            function updateCurrency() {
+                const val = (originInput.value || '').trim().toLowerCase();
+                const key = Object.keys(countryCurrency).find(k => k.toLowerCase() === val);
+                if (key) {
+                    currencyLabel.textContent = countryCurrency[key];
+                    currencyPrefix.textContent = countryCurrency[key];
+                } else {
+                    currencyLabel.textContent = 'select origin country';
+                    currencyPrefix.textContent = '—';
+                }
+            }
+            originInput.addEventListener('input', updateCurrency);
+            originInput.addEventListener('change', updateCurrency);
+            updateCurrency();
+        })();
+
+        (function () {
+            const btn = document.getElementById('copyPromptBtn');
+            const ta = document.getElementById('generatedPrompt');
+            if (!btn || !ta) return;
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(ta.value);
+                    const original = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => (btn.textContent = original), 1500);
+                } catch {
+                    ta.select();
+                    document.execCommand('copy');
+                }
+            });
+        })();
+
+        (function () {
+            const btn = document.getElementById('copyPlanBtn');
+            const el = document.getElementById('aiPlanText');
+            if (!btn || !el) return;
+            btn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(el.innerText);
+                    const original = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => (btn.textContent = original), 1500);
+                } catch { /* ignore */ }
+            });
+        })();
+
+        // Auto-scroll to results after a successful (or failed) submission.
+        (function () {
+            const results = document.getElementById('results');
+            if (!results) return;
+            const hasOutput = @((!string.IsNullOrEmpty(Model.AiResponse) || !string.IsNullOrEmpty(Model.AiError) || !string.IsNullOrEmpty(Model.GeneratedPrompt)) ? "true" : "false");
+            if (hasOutput) {
+                results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        })();
+
+        // "Plan another trip" smooth-scrolls back to the form and focuses the first field.
+        (function () {
+            const btn = document.getElementById('planAnotherBtn');
+            const form = document.getElementById('planTripForm');
+            if (!btn || !form) return;
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const first = document.getElementById('OriginCountry');
+                if (first) setTimeout(() => first.focus({ preventScroll: true }), 400);
+            });
+        })();
+
+        (function () {
+            const form = document.getElementById('planTripForm');
+            const btn = document.getElementById('planTripSubmit');
+            const spinner = document.getElementById('planTripSpinner');
+            const label = document.getElementById('planTripSubmitLabel');
+            if (!form || !btn) return;
+            form.addEventListener('submit', () => {
+                if (typeof form.checkValidity === 'function' && !form.checkValidity()) return;
+                btn.disabled = true;
+                spinner.classList.remove('d-none');
+                label.textContent = 'Planning your trip…';
+            });
+
+            // Native form reset only restores HTML defaults — it does not fire input/change
+            // events, so reactive UI (currency label, dynamic visited/wanted-places list,
+            // card visibility) looks stuck after Reset. Nudge the listeners to re-run, and
+            // clear free-text textareas + the dynamic checkbox lists explicitly.
+            form.addEventListener('reset', () => {
+                setTimeout(() => {
+                    ['OriginCountry', 'DestinationCountry', 'IsFirstVisit'].forEach(id => {
+                        const el = document.getElementById(id);
+                        if (!el) return;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                    // Re-enable the submit button in case it was left disabled mid-flight.
+                    btn.disabled = false;
+                    spinner.classList.add('d-none');
+                    label.innerHTML = '<i class="bi bi-magic me-1"></i> Plan my trip';
+                }, 0);
+            });
+        })();
+
+        // Dynamic place pickers — "must-sees" for first-timers, "already visited" for repeat
+        // visitors. Both react to destination changes; visibility toggles on first-visit flag.
+        (function () {
+            const placesMap = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.DestinationPlacesMap));
+            const destInput = document.getElementById('DestinationCountry');
+            const firstVisitSelect = document.getElementById('IsFirstVisit');
+            if (!destInput || !firstVisitSelect) return;
+
+            function setupPicker(opts) {
+                const card = document.getElementById(opts.cardId);
+                const list = document.getElementById(opts.listId);
+                const countryLabel = document.getElementById(opts.labelId);
+                if (!card || !list) return null;
+
+                // Capture server-side preselected values, then remove the hidden carriers
+                // so we don't double-post them.
+                const preselected = new Set(
+                    Array.from(document.querySelectorAll('.' + opts.preselectClass)).map(el => el.dataset.value)
+                );
+                document.querySelectorAll('.' + opts.preselectClass).forEach(el => el.remove());
+
+                function rebuild() {
+                    const country = (destInput.value || '').trim();
+                    const v = country.toLowerCase();
+                    const key = country ? Object.keys(placesMap).find(k => k.toLowerCase() === v) : null;
+                    list.innerHTML = '';
+                    if (!key) {
+                        list.innerHTML = country
+                            ? '<span class="text-muted small">No curated list for ' + country + ' — use the free-text box below.</span>'
+                            : '<span class="text-muted small">Enter a destination above to see suggestions.</span>';
+                        if (countryLabel) countryLabel.textContent = '';
+                        return;
+                    }
+                    if (countryLabel) countryLabel.textContent = '— ' + key;
+                    placesMap[key].forEach((place, idx) => {
+                        const id = opts.idPrefix + idx;
+                        const wrap = document.createElement('div');
+                        wrap.className = 'form-check form-check-inline';
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.className = 'form-check-input';
+                        cb.name = opts.fieldName;
+                        cb.value = place;
+                        cb.id = id;
+                        if (preselected.has(place)) cb.checked = true;
+                        const lbl = document.createElement('label');
+                        lbl.className = 'form-check-label';
+                        lbl.htmlFor = id;
+                        lbl.textContent = place;
+                        wrap.appendChild(cb);
+                        wrap.appendChild(lbl);
+                        list.appendChild(wrap);
+                    });
+                }
+
+                return { card: card, rebuild: rebuild };
+            }
+
+            const visited = setupPicker({
+                cardId: 'visitedPlacesCard',
+                listId: 'visitedPlacesList',
+                labelId: 'visitedPlacesCountryLabel',
+                preselectClass: 'visited-preselect',
+                idPrefix: 'visited_',
+                fieldName: 'Input.VisitedPlaces'
+            });
+            const wanted = setupPicker({
+                cardId: 'wantedPlacesCard',
+                listId: 'wantedPlacesList',
+                labelId: 'wantedPlacesCountryLabel',
+                preselectClass: 'wanted-preselect',
+                idPrefix: 'wanted_',
+                fieldName: 'Input.WantedPlaces'
+            });
+
+            function rebuildAll() {
+                if (visited) visited.rebuild();
+                if (wanted) wanted.rebuild();
+            }
+
+            function toggleVisibility() {
+                const isFirst = firstVisitSelect.value === 'true' || firstVisitSelect.value === 'True';
+                if (visited) visited.card.classList.toggle('d-none', isFirst);
+                if (wanted) wanted.card.classList.toggle('d-none', !isFirst);
+            }
+
+            destInput.addEventListener('input', rebuildAll);
+            destInput.addEventListener('change', rebuildAll);
+            firstVisitSelect.addEventListener('change', toggleVisibility);
+
+            rebuildAll();
+            toggleVisibility();
+        })();
+
+        // Bootstrap tooltips for the bi-info-circle helpers.
+        (function () {
+            if (!window.bootstrap || !bootstrap.Tooltip) return;
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+        })();
+
+        // Quick-start presets + "Try an example" — fills multiple fields with one click.
+        (function () {
+            function setValue(name, value) {
+                const el = document.querySelector('[name="' + name + '"]');
+                if (!el) return;
+                el.value = value;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            function setChecked(name, values) {
+                const set = new Set(values || []);
+                document.querySelectorAll('input[type="checkbox"][name="' + name + '"]').forEach(cb => {
+                    cb.checked = set.has(cb.value);
+                });
+            }
+            function applyPreset(p) {
+                if (!p) return;
+                if (p.OriginCountry) setValue('Input.OriginCountry', p.OriginCountry);
+                if (p.DestinationCountry) setValue('Input.DestinationCountry', p.DestinationCountry);
+                if (p.Travelers != null) setValue('Input.Travelers', p.Travelers);
+                if (p.Days != null) setValue('Input.Days', p.Days);
+                if (p.TravelMonth) setValue('Input.TravelMonth', p.TravelMonth);
+                if (p.Budget != null) setValue('Input.Budget', p.Budget);
+                if (p.AccommodationTier) setValue('Input.AccommodationTier', p.AccommodationTier);
+                if (p.Pace) setValue('Input.Pace', p.Pace);
+                if (p.TravelTypes) setChecked('Input.TravelTypes', p.TravelTypes);
+                if (p.DietaryPreferences) setChecked('Input.DietaryPreferences', p.DietaryPreferences);
+                if (p.AvoidInterests) setChecked('Input.AvoidInterests', p.AvoidInterests);
+                document.getElementById('planTripForm')
+                    .scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    try { applyPreset(JSON.parse(btn.dataset.preset)); } catch { /* ignore */ }
+                });
+            });
+            const tryBtn = document.getElementById('tryExampleBtn');
+            if (tryBtn) {
+                tryBtn.addEventListener('click', () => {
+                    applyPreset({
+                        OriginCountry: 'United States', DestinationCountry: 'Portugal',
+                        Travelers: 2, Days: 8, TravelMonth: 'October', Budget: 4500,
+                        AccommodationTier: 'Mid-range (3-star)', Pace: 'Balanced',
+                        TravelTypes: ['Foodie', 'Cultural', 'Relaxation']
+                    });
+                });
+            }
+        })();
+
+        // Back-to-top button.
+        (function () {
+            const btn = document.getElementById('backToTopBtn');
+            if (!btn) return;
+            function toggle() {
+                btn.classList.toggle('visible', window.scrollY > 400);
+            }
+            window.addEventListener('scroll', toggle, { passive: true });
+            btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+            toggle();
+        })();
+
+        // If results from a previous run are on the page, hide them as soon as the user
+        // edits ANY form control — the rendered plan no longer matches the form, and we
+        // don't want to mislead them. One-shot: we detach after firing.
+        (function () {
+            const panel = document.getElementById('resultsPanel');
+            const form = document.getElementById('planTripForm');
+            if (!panel || !form) return;
+            // Nothing to hide if no results are rendered.
+            if (!panel.children || panel.children.length === 0) return;
+
+            function clearStaleResults() {
+                panel.classList.add('results-fading');
+                setTimeout(() => {
+                    panel.innerHTML = '';
+                    panel.classList.remove('results-fading');
+                }, 200);
+                form.removeEventListener('input', clearStaleResults, true);
+                form.removeEventListener('change', clearStaleResults, true);
+            }
+
+            // Use capture so dynamically-added inputs (visited/wanted-place chips) are covered.
+            form.addEventListener('input', clearStaleResults, true);
+            form.addEventListener('change', clearStaleResults, true);
+        })();
+    </script>
+}
